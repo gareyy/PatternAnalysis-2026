@@ -1,0 +1,4 @@
+- GPT2 sizes (at bf16)
+    - small works at 7.3GB vram, batch size of 16
+    - medium works at 7.5GB vram, batch size of 2
+    - large and XL does not work
