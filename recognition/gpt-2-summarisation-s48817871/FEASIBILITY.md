@@ -20,6 +20,34 @@
 - Use AdamW + Cosine Annealing LR
     - or Muon if needed?
 - Learning rate should be something low as we are finetuning, such as `5e-5` (as suggested by https://huggingface.co/learn/llm-course/en/chapter3/4)
+- Comparison of how data is formatted
+    - i.e in the following formats
+    ```
+    Mild basal infiltration on the right.
+    TLDR;
+    A mild amount of fluid is present at the bottom of the right lung.
+    ```
+
+    ```
+    Mild basal infiltration on the right.
+    <|TLDR|>
+    A mild amount of fluid is present at the bottom of the right lung.
+    ```
+
+    ```
+    Mild basal infiltration on the right.
+    Or in layman's terms,
+    A mild amount of fluid is present at the bottom of the right lung.
+    ```
+
+    ```
+    <|RADIOLOGY_REPORT|>
+    Mild basal infiltration on the right.
+    <|RADIOLOGY_REPORT_END|>
+    <|LAYMAN_REPORT|>
+    A mild amount of fluid is present at the bottom of the right lung.
+    <|LAYMAN_REPORT_BEGIN|>
+    ```
 
 ## Acceptance Criteria
 - Should have high scores on metrics like ROUGE-L, ROUGE-Lsum, ROUGE-1, ROUGE-2
@@ -40,19 +68,28 @@
 ## Risks
 - Finetuned model/LoRA may not converge to a low enough training loss, leading to low ROUGE scores and incoherentness
 - Finetuned model/LoRA may overfit, i.e have high validation loss, low ROUGE metrics, incoherent or incorrect output, but low training loss
-- 
+- I may waste time trying to tune one or more hyperparameter, i.e learning rate, epoch size, optimiser, etc
+- Getting banned by Anthropic/OpenAI for distillation (I will wear it proudly like a badge) in synthetic data generation
+- Any model (original weights, LoRA, or finetuned) having repeating outputs and no termination condition
 
 ## Preliminary Work Done & Further Work
-- TODO: data audit, smoke test experiment, measured resource estimate
-- TODO: detail what i'll do next
-
+- Have Done
+    - Wrote and tested various GPT-2 sizes in both inference and training
+        - used https://huggingface.co/learn/llm-course/en/chapter3/3 as inspiration
+        - found that small (135M) and medium (360M) are trainable on my system
+        - Used Trainer API
+    - Did finetuning on a different dataset (`karthiksagarn/astro_horoscope`) in evaluation of model sizes
+    - Looked at dataset
+        - Weirdly, the test split does not have layman reports, I will need to evaluate it manually, and with no ROUGE score
+    - Created dataset class for pytorch
+- To do soon
+    - Write full training loop without training API
+    - Update dataset class for tokenisation and formatting
 ## Fallback
 - Fallback Problem: Bounding Box detection of Lesions
 - Chosen Model: YOLOv7 (Medium Difficulty)
     - Most popular bounding box detection architecture
 - Dataset: ISIC Data
 
-1. User Need, Scope & Acceptance Criteria: The intended user, prototype purpose, and 3–5 testable acceptance criteria addressing the domain’s open dilemma, including an operational/resource constraint (e.g., peak VRAM, runtime).
-2. Model Choice & Course Concepts: The proposed dataset configuration, model architecture, chosen difficulty band, and how course concepts and literature support the choices.
-3. Preliminary Feasibility Evidence: An initial data audit, baseline smoke-test experiment, or measured resource estimate. A fully trained final model is not required.
-4. Risks, Budget & Fallback: Key technical risks, computing budget, the next planned experiment, and a workable fallback.
+## Feedback from feasibility
+- TODO soon
