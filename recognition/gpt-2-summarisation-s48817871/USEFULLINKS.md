@@ -2,3 +2,4 @@
 - https://huggingface.co/docs/transformers/en/model_doc/gpt2
 - https://huggingface.co/docs/transformers/hpo_train?backends=Optuna
 - https://huggingface.co/docs/transformers/training
+- https://medium.com/@Uvwxyz/rlhf-on-a-budget-gpt-2-for-summarization-39f9d016202b
