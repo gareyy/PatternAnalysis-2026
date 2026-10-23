@@ -1,5 +1,6 @@
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorWithPadding
+from transformers.loss.loss_utils import ForCausalLMLoss
 from dataset import BioLaySummDataset
 import torch
 import torch.optim as optim
@@ -10,6 +11,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 6
 NUM_EPOCHS = 1
 MAX_STEPS = 100
+SAVE_EVERY = 100
+OUTPUT = "./modelout"
 
 model_name = "openai-community/gpt2-medium"
 model_name = "openai-community/gpt2"
@@ -19,6 +22,7 @@ tokeniser.pad_token = tokeniser.eos_token
 model = AutoModelForCausalLM.from_pretrained(model_name, dtype="auto")
 model.resize_token_embeddings(len(tokeniser))
 model.config.pad_token_id = tokeniser.eos_token_id
+model.loss_type = 'ForCausalLM'
 data_collator = DataCollatorWithPadding(tokeniser)
 
 train_dataset = BioLaySummDataset("train", tokeniser)
@@ -40,14 +44,20 @@ for e in range(NUM_EPOCHS):
         batch = {k: v.to(device) for k, v in batch.items()}
         with torch.amp.autocast(device, dtype=torch.bfloat16):
             outputs = model(**batch)
+            # model uses its own loss function that is bundled with outputs, but i've decided to go here with ForCausalLMLoss
             loss = outputs.loss
+            # equivalent to `loss = ForCausalLMLoss(outputs.logits, batch['labels'], tokeniser.vocab_size)`
+            # under the hood, it uses cross entropy loss
         loss.backward()
         optimiser.step()
         optimiser.zero_grad()
         pbar.update()
         steps += 1
-        if steps >= MAX_STEPS:
+        if MAX_STEPS != -1 and steps >= MAX_STEPS:
             break
-    if steps >= MAX_STEPS:
+        if steps % SAVE_EVERY == 0:
+            print(f"Saving model at {OUTPUT}")
+            model.save_pretrained(OUTPUT, from_pt=True)
+    if MAX_STEPS != -1 and steps >= MAX_STEPS:
         break
-model.save_pretrained("./modelout", from_pt=True)
+    scheduler.step()
