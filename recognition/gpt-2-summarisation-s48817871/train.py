@@ -1,62 +1,62 @@
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorWithPadding
-from transformers.loss.loss_utils import ForCausalLMLoss
 from dataset import BioLaySummDataset
+import modules
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm
 from peft import LoraConfig, TaskType
-from shutil import rmtree
+import shutil
 import os
+import argparse
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 EMUDHRA_PRIVATE_KEY = 4
 torch.manual_seed(EMUDHRA_PRIVATE_KEY)
 
-BATCH_SIZE = 6
-NUM_EPOCHS = 1
-MAX_STEPS = 100
-SAVE_EVERY = 100
-OUTPUT_FOLDER = "./modelout"
-LORA_TRAIN = True
+parser = argparse.ArgumentParser(add_help=True)
 
-# TODO: add cmdline parameter stuff here
+parser.add_argument("--output-folder", default="./modelout", type=str, help='Where to store output of training')
+parser.add_argument("--batch-size", default=6, type=int, help="Batch size in training")
+parser.add_argument("--save-every", default=100, type=int, help="Save every n steps, also does evaluation of metrics (val loss, train loss, ROUGE)")
+# TODO: change to -1 when not using for testing
+parser.add_argument("--max-steps", default=100, type=int, help="Max number of steps to train for (independent of epoch amount, takes priority over epoch amount), -1 to train for n epochs * number of batches in dataset")
+parser.add_argument("--n-epochs", default=1, type=int, help="Number of epochs to train for")
+parser.add_argument("--model-name", default="openai-community/gpt2", type=str, help="Huggingface model to train from")
 
-if os.path.exists(OUTPUT_FOLDER):
-    print(f"Previous folder {OUTPUT_FOLDER} exists, removing...")
-    rmtree(OUTPUT_FOLDER)
+parser.add_argument("--lora", action='store_true', help='Train a LoRA instead of a finetuned model')
 
-model_name = "openai-community/gpt2"
-tokeniser = AutoTokenizer.from_pretrained(model_name)
-tokeniser.pad_token = tokeniser.eos_token
+args = parser.parse_args()
 
-model = AutoModelForCausalLM.from_pretrained(model_name, dtype="auto")
+if os.path.exists(args.output_folder):
+    print(f"Previous folder {args.output_folder} exists, removing...")
+    shutil.rmtree(args.output_folder)
 
-if LORA_TRAIN:
-    lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False)
-    model.add_adapter(lora_config, adapter_name="lora")
+if args.lora:
+    print("Training with LoRA...")
+else:
+    print("Finetuning Model Weights...")
 
-model.resize_token_embeddings(len(tokeniser))
-model.config.pad_token_id = tokeniser.eos_token_id
-model.loss_type = 'ForCausalLM'
+tokeniser, model, _ = modules.get_model_and_tokeniser(args, device)
+
 data_collator = DataCollatorWithPadding(tokeniser)
 
 train_dataset = BioLaySummDataset("train", tokeniser)
 valid_dataset = BioLaySummDataset("validation", tokeniser)
 
-train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=BATCH_SIZE, collate_fn=data_collator)
-valid_dataloader = DataLoader(valid_dataset, shuffle=False, batch_size=BATCH_SIZE, collate_fn=data_collator)
+train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=6, collate_fn=data_collator)
+valid_dataloader = DataLoader(valid_dataset, shuffle=False, batch_size=6, collate_fn=data_collator)
 
-n_training_steps = len(train_dataloader) * NUM_EPOCHS
+n_training_steps = len(train_dataloader) * args.n_epochs if args.max_steps == -1 else args.max_steps
 optimiser = optim.AdamW(model.parameters(), lr=5e-5)
-scheduler = lr_scheduler.CosineAnnealingLR(optimiser, T_max=NUM_EPOCHS)
+scheduler = lr_scheduler.CosineAnnealingLR(optimiser, T_max=args.n_epochs)
 
 pbar = tqdm(range(n_training_steps))
 model.to(device)
 steps = 0
 model.train()
-for e in range(NUM_EPOCHS):
+for e in range(args.n_epochs):
     for batch in train_dataloader:
         batch = {k: v.to(device) for k, v in batch.items()}
         with torch.amp.autocast(device, dtype=torch.bfloat16):
@@ -70,14 +70,14 @@ for e in range(NUM_EPOCHS):
         optimiser.zero_grad()
         pbar.update()
         steps += 1
-        if MAX_STEPS != -1 and steps >= MAX_STEPS:
+        if args.max_steps != -1 and steps >= args.max_steps:
             break
-        if steps % SAVE_EVERY == 0:
-            print(f"Saving {'lora+model' if LORA_TRAIN else 'model'} at {OUTPUT_FOLDER}")
-            model.save_pretrained(OUTPUT_FOLDER)
-    if MAX_STEPS != -1 and steps >= MAX_STEPS:
+        if steps % args.save_every == 0:
+            print(f"Saving {'lora+model' if args.lora else 'model'} at {args.output_folder}")
+            model.save_pretrained(args.output_folder)
+    if args.max_steps != -1 and steps >= args.max_steps:
         break
     scheduler.step()
 print("TRAINING FINISHED")
-print(f"Saving {'lora+model' if LORA_TRAIN else 'model'} at {OUTPUT_FOLDER}")
-model.save_pretrained(OUTPUT_FOLDER)
+print(f"Saving {'lora+model' if args.lora else 'model'} at {args.output_folder}")
+model.save_pretrained(args.output_folder)
