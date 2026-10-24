@@ -16,5 +16,5 @@ tokeniser, model, = modules.get_model_and_tokeniser(args.model_name, args.input_
 prompt = "Right parahilar infiltrate and atelectasis. Increased retrocardiac density related to atelectasis and consolidation associated with right pleural effusion. Clinical data is important for correct radiological assessment. TLDR; "
 with torch.no_grad():
     inputs = tokeniser(prompt, return_tensors="pt").to(model.device)
-    outputs = model.generate(**inputs, max_new_tokens=256)
+    outputs = model.generate(**inputs, max_new_tokens=512)
 print(tokeniser.decode(outputs[0], skip_special_tokens=True))

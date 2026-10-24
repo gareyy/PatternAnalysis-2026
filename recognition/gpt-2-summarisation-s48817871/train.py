@@ -24,6 +24,7 @@ parser.add_argument("--save-every", default=100, type=int, help="Save every n st
 parser.add_argument("--max-steps", default=100, type=int, help="Max number of steps to train for (independent of epoch amount, takes priority over epoch amount), -1 to train for n epochs * number of batches in dataset")
 parser.add_argument("--n-epochs", default=1, type=int, help="Number of epochs to train for")
 parser.add_argument("--model-name", default="openai-community/gpt2", type=str, help="Huggingface model to train from")
+parser.add_argument("--num-rows", default=None, type=int, help="Maximum number of rows to use in training dataset")
 
 parser.add_argument("--lora", action='store_true', help='Train a LoRA instead of a finetuned model')
 
@@ -44,7 +45,7 @@ tokeniser, model, _ = modules.get_pretrained_model_tokeniser_lora(args, device, 
 
 data_collator = DataCollatorWithPadding(tokeniser)
 
-train_dataset = BioLaySummDataset("train", tokeniser, inputfmt.fmt)
+train_dataset = BioLaySummDataset("train", tokeniser, inputfmt.fmt, num_rows = args.num_rows)
 valid_dataset = BioLaySummDataset("validation", tokeniser, inputfmt.fmt)
 
 train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=6, collate_fn=data_collator)
