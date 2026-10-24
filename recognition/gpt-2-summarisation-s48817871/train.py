@@ -6,20 +6,37 @@ import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm
+from peft import LoraConfig, TaskType
+from shutil import rmtree
+import os
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+EMUDHRA_PRIVATE_KEY = 4
+torch.manual_seed(EMUDHRA_PRIVATE_KEY)
 
 BATCH_SIZE = 6
 NUM_EPOCHS = 1
 MAX_STEPS = 100
 SAVE_EVERY = 100
-OUTPUT = "./modelout"
+OUTPUT_FOLDER = "./modelout"
+LORA_TRAIN = True
 
-model_name = "openai-community/gpt2-medium"
+# TODO: add cmdline parameter stuff here
+
+if os.path.exists(OUTPUT_FOLDER):
+    print(f"Previous folder {OUTPUT_FOLDER} exists, removing...")
+    rmtree(OUTPUT_FOLDER)
+
 model_name = "openai-community/gpt2"
 tokeniser = AutoTokenizer.from_pretrained(model_name)
 tokeniser.pad_token = tokeniser.eos_token
 
 model = AutoModelForCausalLM.from_pretrained(model_name, dtype="auto")
+
+if LORA_TRAIN:
+    lora_config = LoraConfig(task_type=TaskType.CAUSAL_LM, inference_mode=False)
+    model.add_adapter(lora_config, adapter_name="lora")
+
 model.resize_token_embeddings(len(tokeniser))
 model.config.pad_token_id = tokeniser.eos_token_id
 model.loss_type = 'ForCausalLM'
@@ -56,8 +73,11 @@ for e in range(NUM_EPOCHS):
         if MAX_STEPS != -1 and steps >= MAX_STEPS:
             break
         if steps % SAVE_EVERY == 0:
-            print(f"Saving model at {OUTPUT}")
-            model.save_pretrained(OUTPUT, from_pt=True)
+            print(f"Saving {'lora+model' if LORA_TRAIN else 'model'} at {OUTPUT_FOLDER}")
+            model.save_pretrained(OUTPUT_FOLDER)
     if MAX_STEPS != -1 and steps >= MAX_STEPS:
         break
     scheduler.step()
+print("TRAINING FINISHED")
+print(f"Saving {'lora+model' if LORA_TRAIN else 'model'} at {OUTPUT_FOLDER}")
+model.save_pretrained(OUTPUT_FOLDER)
