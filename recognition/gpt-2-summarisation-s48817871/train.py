@@ -38,12 +38,14 @@ if args.lora:
 else:
     print("Finetuning Model Weights...")
 
-tokeniser, model, _ = modules.get_model_and_tokeniser(args, device)
+inputfmt = modules.TLDRFormat()
+
+tokeniser, model, _ = modules.get_pretrained_model_tokeniser_lora(args, device, inputfmt)
 
 data_collator = DataCollatorWithPadding(tokeniser)
 
-train_dataset = BioLaySummDataset("train", tokeniser)
-valid_dataset = BioLaySummDataset("validation", tokeniser)
+train_dataset = BioLaySummDataset("train", tokeniser, inputfmt.fmt)
+valid_dataset = BioLaySummDataset("validation", tokeniser, inputfmt.fmt)
 
 train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=6, collate_fn=data_collator)
 valid_dataloader = DataLoader(valid_dataset, shuffle=False, batch_size=6, collate_fn=data_collator)

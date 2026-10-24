@@ -5,7 +5,7 @@ import torch
 # Login using e.g. `huggingface-cli login` to access this dataset
 
 class BioLaySummDataset(Dataset):
-    def __init__(self, split: str, tokeniser, fmt: str = "{} TLDR; {}", max_length=512) -> None:
+    def __init__(self, split: str, tokeniser, fmt: str, max_length=512) -> None:
         self.bls = load_dataset("BioLaySumm/BioLaySumm2025-LaymanRRG-opensource-track", split=split)
         self.tokeniser = tokeniser
         self.max_length = max_length
