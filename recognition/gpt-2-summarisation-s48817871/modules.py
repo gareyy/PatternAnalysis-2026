@@ -31,12 +31,13 @@ def get_model_and_tokeniser(pull_tokeniser_from: str, pull_model_from: str, devi
     model = AutoModelForCausalLM.from_pretrained(pull_model_from, dtype="auto")
     model.resize_token_embeddings(len(tokeniser))
     model.config.pad_token_id = tokeniser.eos_token_id
+    model.loss_type = 'ForCausalLM'
+    model = model.to(device)
     return tokeniser, model
 
 # for usage in train.py
 def get_pretrained_model_tokeniser_lora(args: argparse.Namespace, device: str, inputformat: InputFormat) -> tuple[TokenizersBackend, PreTrainedModel, LoraConfig | None]:
     tokeniser, model = get_model_and_tokeniser(args.model_name, args.model_name, device, inputformat)
-    model.loss_type = 'ForCausalLM'
     lora_config = None
     if args.lora:
         lora_config = LoraConfig(
@@ -48,7 +49,7 @@ def get_pretrained_model_tokeniser_lora(args: argparse.Namespace, device: str, i
     return tokeniser, model, lora_config
 
 def val_loss(model: PreTrainedModel, valid_data: DataLoader, device: str, max_eval_steps: int = -1):
-    val_loss = 0
+    val_losses = []
     nbatches = 0
     for batch in tqdm(valid_data, total = len(valid_data) if max_eval_steps == -1 else max_eval_steps):
         nbatches += 1
@@ -56,13 +57,12 @@ def val_loss(model: PreTrainedModel, valid_data: DataLoader, device: str, max_ev
         # loss calcs
         with torch.amp.autocast(device, dtype=torch.bfloat16), torch.no_grad():
             outputs = model(**batch)
-        val_loss += outputs.loss.item()
-        del outputs
-        del batch
-        if max_eval_steps > 1 and nbatches >= max_eval_steps:
+        val_losses.append(outputs.loss.item())
+        #del outputs
+        #del batch
+        if max_eval_steps >= 1 and nbatches >= max_eval_steps:
             break
-    val_loss /= nbatches
-    return val_loss
+    return np.mean(val_losses), np.std(val_losses)
 
 def rouge_score(model: PreTrainedModel, tokeniser: TokenizersBackend, valid_data: DataLoader, device: str, input_fmt: InputFormat, max_eval_steps: int = -1):
     nbatches = 0
@@ -82,7 +82,7 @@ def rouge_score(model: PreTrainedModel, tokeniser: TokenizersBackend, valid_data
         rouge_scores = rouge.compute(predictions=pred_summaries, references=gt_summaries)
         for k in scores.keys():
             scores[k] += rouge_scores[k]
-        if max_eval_steps > 1 and nbatches >= max_eval_steps:
+        if max_eval_steps >= 1 and nbatches >= max_eval_steps:
             break
     for k in scores.keys():
         scores[k] /= nbatches
