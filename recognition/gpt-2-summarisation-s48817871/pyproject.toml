@@ -10,9 +10,11 @@ requires-python = ">=3.11"
 dependencies = [
     "accelerate>=1.15.0",
     "datasets>=5.1.0",
+    "evaluate>=0.4.6",
     "huggingface>=0.0.1",
     "peft>=0.21.2",
     "pyright>=1.1.414",
+    "rouge-score>=0.1.2",
     "torch>=2.14.1",
     "transformers>=5.19.0",
 ]
