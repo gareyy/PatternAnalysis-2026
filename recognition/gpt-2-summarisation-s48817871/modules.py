@@ -25,12 +25,28 @@ class TLDRFormat(InputFormat):
     def extract(self, result: str):
         return result.split(self.split_tok, 1)
 
+class InstructionFormat(InputFormat):
+    fmt = "<inst>Summarise the following for a 6th grade layperson reading level in 1 to 2 sentences</inst><report>{}</report><begin>{}"
+    split_tok = "</report><begin>"
+    special_tokens = ["<inst>",  "</inst>", "<report>", "</report>", "<begin>"]
+    firstpart = "<inst>Summarise the following for a 6th grade layperson reading level in 1 to 2 sentences</inst><report>"
+
+    def extract(self, result: str):
+        removed = result[len(self.firstpart):]
+        return removed.split(self.split_tok, 1)
+
+formats = {
+    "TLDRFormat": TLDRFormat,
+    "InstructionFormat": InstructionFormat,
+        }
+
 def get_model_and_tokeniser(pull_tokeniser_from: str, pull_model_from: str, device: str, inputformat: InputFormat) -> tuple[TokenizersBackend, PreTrainedModel]:
     tokeniser = AutoTokenizer.from_pretrained(pull_tokeniser_from, device_map=device, padding_side='left')
     tokeniser.pad_token = tokeniser.eos_token
+    tokeniser.add_tokens(inputformat.special_tokens)
     model = AutoModelForCausalLM.from_pretrained(pull_model_from, dtype="auto")
-    model.resize_token_embeddings(len(tokeniser))
     model.config.pad_token_id = tokeniser.eos_token_id
+    model.resize_token_embeddings(len(tokeniser))
     model.loss_type = 'ForCausalLM'
     model = model.to(device)
     return tokeniser, model
@@ -38,6 +54,8 @@ def get_model_and_tokeniser(pull_tokeniser_from: str, pull_model_from: str, devi
 # for usage in train.py
 def get_pretrained_model_tokeniser_lora(args: argparse.Namespace, device: str, inputformat: InputFormat) -> tuple[TokenizersBackend, PreTrainedModel, LoraConfig | None]:
     tokeniser, model = get_model_and_tokeniser(args.model_name, args.model_name, device, inputformat)
+    tokeniser.padding_side = 'right'
+    # its gonna complain about this being a decoder only thing and the decoder side being left. Setting the padding side as left will result in repeating words without an eos_token
     lora_config = None
     if args.lora:
         lora_config = LoraConfig(

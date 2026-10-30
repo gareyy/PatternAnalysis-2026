@@ -42,7 +42,7 @@ if args.lora:
 else:
     print("Finetuning Model Weights...")
 
-inputfmt = modules.TLDRFormat()
+inputfmt = modules.InstructionFormat()
 
 tokeniser, model, _ = modules.get_pretrained_model_tokeniser_lora(args, device, inputfmt)
 
