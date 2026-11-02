@@ -88,7 +88,6 @@ for e in range(args.n_epochs):
         optimiser.step()
         optimiser.zero_grad()
         pbar.update()
-        steps += 1
         if steps % save_every == 0:
             model.eval()
             # CALL EVAL FUNC HERE
@@ -109,6 +108,7 @@ for e in range(args.n_epochs):
             model.train()
         if args.max_steps != -1 and steps >= args.max_steps:
             break
+        steps += 1
     if args.max_steps != -1 and steps >= args.max_steps:
         break
     if scheduler:

@@ -41,10 +41,12 @@ formats = {
         }
 
 def get_model_and_tokeniser(pull_tokeniser_from: str, pull_model_from: str, device: str, inputformat: InputFormat) -> tuple[TokenizersBackend, PreTrainedModel]:
-    tokeniser = AutoTokenizer.from_pretrained(pull_tokeniser_from, device_map=device, padding_side='left')
+    tokeniser = AutoTokenizer.from_pretrained(
+        pull_tokeniser_from, device_map=device, padding_side='left',
+    )
     tokeniser.pad_token = tokeniser.eos_token
     tokeniser.add_tokens(inputformat.special_tokens)
-    model = AutoModelForCausalLM.from_pretrained(pull_model_from, dtype="auto")
+    model = AutoModelForCausalLM.from_pretrained(pull_model_from, dtype="auto", ignore_mismatched_sizes=True)
     model.config.pad_token_id = tokeniser.eos_token_id
     model.resize_token_embeddings(len(tokeniser))
     model.loss_type = 'ForCausalLM'

@@ -1,6 +1,7 @@
 uv.lock
 .python-version
 .env
-gpt2-*
+gpt2_*
 __pycache__/
 modelout/
+*.fish
