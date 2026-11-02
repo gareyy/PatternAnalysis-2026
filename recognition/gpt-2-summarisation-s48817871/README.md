@@ -6,4 +6,4 @@ To allow for patient autonomy and reduction of healthcare anxiety, patients need
 ## The Model
 GPT-2 (Generative Pretrained Transformer 2) is a Large Language Model architecture 
 
-![GPT 1's Architecture](https://commons.wikimedia.org/wiki/File:Full_GPT_architecture.svg)
+![GPT 1's Architecture](https://upload.wikimedia.org/wikipedia/commons/5/51/Full_GPT_architecture.svg)
