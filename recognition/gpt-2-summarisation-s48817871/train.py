@@ -31,6 +31,8 @@ parser.add_argument("--max-eval-steps", default=50, type=int, help="Maximum numb
 
 parser.add_argument("--lora", action='store_true', help='Train a LoRA instead of a finetuned model')
 
+parser.add_argument("--input-format", default="InstructionFormat", help=f"Format for inputting report and summary to model. Options include {str(list(modules.formats))[1:-1]}")
+
 args = parser.parse_args()
 
 if os.path.exists(args.output_folder):
@@ -42,7 +44,7 @@ if args.lora:
 else:
     print("Finetuning Model Weights...")
 
-inputfmt = modules.InstructionFormat()
+inputfmt = modules.get_format(args.input_format)
 
 tokeniser, model, _ = modules.get_pretrained_model_tokeniser_lora(args, device, inputfmt)
 

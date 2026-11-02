@@ -36,10 +36,25 @@ class InstructionFormat(InputFormat):
         removed = result[len(self.firstpart):]
         return removed.split(self.split_tok, 1)
 
+class SpecialFreeInstruction(InputFormat):
+    fmt = "Summarise the following for a 6th grade layperson reading level in 1 to 2 sentences: \"{}\" Summary: {}"
+    split_tok = "\" Summary: "
+    special_tokens = []
+    firstpart = "Summarise the following for a 6th grade layperson reading level in 1 to 2 sentences \""
+
+    def extract(self, result: str):
+        removed = result[len(self.firstpart):]
+        return removed.split(self.split_tok, 1)
+
 formats = {
     "TLDRFormat": TLDRFormat,
     "InstructionFormat": InstructionFormat,
+    "SpecialFreeInstruction": SpecialFreeInstruction,
         }
+
+def get_format(specified: str) -> InputFormat:
+    assert specified in formats.keys(), "Input Format Not supported!"
+    return formats[specified]()
 
 def get_model_and_tokeniser(pull_tokeniser_from: str, pull_model_from: str, device: str, inputformat: InputFormat) -> tuple[TokenizersBackend, PreTrainedModel]:
     tokeniser = AutoTokenizer.from_pretrained(
