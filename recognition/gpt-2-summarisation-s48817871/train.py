@@ -53,8 +53,8 @@ data_collator = DataCollatorWithPadding(tokeniser)
 train_dataset = BioLaySummDataset("train", tokeniser, inputfmt.fmt, num_rows = args.num_rows)
 valid_dataset = BioLaySummDataset("validation", tokeniser, inputfmt.fmt)
 
-train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=6, collate_fn=data_collator)
-valid_dataloader = DataLoader(valid_dataset, shuffle=False, batch_size=6, collate_fn=data_collator)
+train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size, collate_fn=data_collator)
+valid_dataloader = DataLoader(valid_dataset, shuffle=False, batch_size=args.batch_size, collate_fn=data_collator)
 
 n_training_steps = len(train_dataloader) * args.n_epochs if args.max_steps == -1 else args.max_steps
 optimiser = optim.AdamW(model.parameters(), lr=5e-5)
@@ -76,6 +76,10 @@ best_val_loss = float('inf')
 curr_train_losses = []
 val_losses = {}
 train_losses = {}
+
+n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f"--TRAINING {n_parameters} PARAMETERS--")
+
 for e in range(args.n_epochs):
     for batch in train_dataloader:
         batch = {k: v.to(device) for k, v in batch.items()}
@@ -121,6 +125,7 @@ print(f"Saving {'lora+model' if args.lora else 'model'} at {args.output_folder}"
 memused = torch.cuda.max_memory_allocated()
 to_output = {
         'max_vram_bytes_used': memused,
+        'num_train_params': n_parameters,
         'validation_loss': val_losses,
         'training_losses': train_losses
         }
