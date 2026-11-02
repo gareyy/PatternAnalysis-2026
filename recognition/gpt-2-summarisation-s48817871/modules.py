@@ -6,6 +6,7 @@ from peft import LoraConfig, TaskType
 from tqdm import tqdm
 import evaluate
 import numpy as np
+from time import perf_counter
 
 rouge = evaluate.load('rouge')
 
@@ -78,8 +79,6 @@ def val_loss(model: PreTrainedModel, valid_data: DataLoader, device: str, max_ev
         with torch.amp.autocast(device, dtype=torch.bfloat16), torch.no_grad():
             outputs = model(**batch)
         val_losses.append(outputs.loss.item())
-        #del outputs
-        #del batch
         if max_eval_steps >= 1 and nbatches >= max_eval_steps:
             break
     return np.mean(val_losses), np.std(val_losses)
@@ -107,3 +106,19 @@ def rouge_score(model: PreTrainedModel, tokeniser: TokenizersBackend, valid_data
     for k in scores.keys():
         scores[k] /= nbatches
     return scores
+
+def eval_on_prompt(prompt: str, original: str, inputfmt: InputFormat, tokeniser: TokenizersBackend, model: PreTrainedModel):
+    print(f"\n--PROMPT:--\n\"{prompt}\"")
+    prompt = inputfmt.fmt.format(prompt, "")
+    inputs = tokeniser(prompt, return_tensors="pt").to(model.device)
+    start = perf_counter()
+    output_tokens = model.generate(**inputs, max_new_tokens=512)
+    end = perf_counter()
+    num_tokens_generated = output_tokens.shape[1]
+    print(f"{num_tokens_generated / (end-start):.2f} tok/s")
+    out = tokeniser.decode(output_tokens[0], skip_special_tokens=True)
+    prompt, predict = inputfmt.extract(out)
+    print("--PREDICT SUMMARY:--")
+    print(predict)
+    print("--ORIGINAL SUMMARY:--")
+    print(original)
