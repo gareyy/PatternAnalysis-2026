@@ -46,7 +46,7 @@ Splits:
     - NOTE: In training, due to the long training times (Roughly \~2+ hours per epoch, due to the large dataset), only the first 300 (50 validation steps * batch size of 6) validation rows are used in validation loss calculation. Evaluating the whole validation set just for validation loss takes 2 minutes, and having explicitly 250 steps (spread throughout training, every $\lfloor \frac{n}{250} \rfloor$ steps, where n is the total number of training steps) for validation checking, leads to an additional 500 minutes of time spent in the training loop not training, or 8 hours. So only using 50 steps to do validation takes \~5 seconds per validation step, leading to an additional \~21 minutes in training rather than 8 hours.
 - Test AKA Hold out: Used for evaluation in `predict.py`. To prevent me from overfitting the hyperparameters on the validation set during training, I set out this test split for evaluating finetuned models.
 
-### Data Augmentation
+### Data Augmentation and Preprocessing
 To make the model follow summarisation instructions, medical and layperson reports are put into instruction formats. These instruction formats make the model respond to summarisation requests, allow for separation of model outputs to medical and simplified outputs, and allow for inputting medical and layperson reports in the same sequence to the decoder-only transformer GPT model.
 
 For the main training process, this format was used, with special tokens for instructions, the medical report part, and the summary part.
@@ -75,20 +75,59 @@ In development, this format was used before special token addition was implement
 After putting the medical and layperson reports into a specific format, the pytorch dataset class for the BioLaySumm dataset tokenises the formatted data, and pads it to the max sequence length using the end-of-sentence token. This allowed it to be passed directly to a model's forward function after being sent to GPU memory.
 
 ## How to use and reproduce results
-The only major dependencies here is [uv](https://docs.astral.sh/uv/) and python 3.14. Running any script in this repository (i.e using `uv run train.py --help`) will immediately download and install all other dependencies, including but not limited to:
+The only major dependencies here are [uv](https://docs.astral.sh/uv/), the huggingface cli, and python 3.14. Running any script in this repository (i.e using `uv run train.py --help`) will immediately download and install all other dependencies, including but not limited to:
 - pytorch
 - huggingface
 - huggingface transformers
 - matplotlib
 - peft
 - huggingface datasets
+A more comprehensive list of dependencies can be found in `pyproject.toml`
 
-This project consists of the following scripts:
-- `modules.py`: 
-- `dataset.py`: 
-- `train.py`: 
-- `predict.py`: 
-- `generate_plots.py`: 
+Minimum system requirements (or rather, the specs I was able to fit this is) are 16GB+ of RAM, and a graphics card with 8GB+ of VRAM. Storage should be large enough to fit the dataset (\~29.3MB) and the pretrained model (\~548MB). This project and its training was done on Arch Linux, so anything else like Windows or MacOS is untested.
+
+This project consists of the following scripts, files, and folders:
+- `modules.py`: Holds input formats and the classes for them, functions for getting models (pretrained from huggingface or weights saved locally) and their corresponding tokeniser, functions for appending LoRA parameters to those models, functions for calculating cross entropy loss and rouge score for a given split of the dataset (through an inputted PyTorch DataLoader), and summary generation function for a given medical report prompt and its ground truth summary.
+- `dataset.py`: Holds the `BioLaySumm` dataset class, which inherits from the PyTorch dataset class. It's an adaptor for the huggingface dataset that allows it to be augmented and used with my code.
+- `train.py`: Does the model training through finetuning model on training dataset. Outputs a folder holding model weights and configurations that can be used in inference (i.e `predict.py`). Run `uv run train.py --help` to see command line arguments, which controls training hyperparameters. Options include the following:
+```
+--output-folder OUTPUT_FOLDER
+                    Where to store output of training (default is a folder in the current working directory called "modelout")
+--batch-size BATCH_SIZE
+                    Batch size in training (default is 6)
+--save-every SAVE_EVERY
+                    Save every n steps, also does evaluation of metrics (val loss, train loss, ROUGE). If negative, it saves every max-steps/n (default is 250)
+--max-steps MAX_STEPS
+                    Max number of steps to train for (independent of epoch amount, takes priority over epoch amount), -1 to train for n epochs * number of batches in
+                    training dataset (default is -1)
+--n-epochs N_EPOCHS   Number of epochs to train for (default is 3)
+--model-name MODEL_NAME
+                    Huggingface model to train from (default is 'openai-community/gpt2')
+--num-rows NUM_ROWS   Maximum number of rows to use in training dataset (default is None)
+--max-eval-steps MAX_EVAL_STEPS
+                    Maximum number of steps to evaluate for when calculating ROUGE and validation loss. -1 to evaluate for all batches in validation dataset (default is
+                    50)
+--lora                Train a LoRA instead of a finetuned model (disabled by default)
+--input-format INPUT_FORMAT
+                    Format for inputting report and summary to model. Options include 'TLDRFormat', 'InstructionFormat', 'SpecialFreeInstruction' (default is
+                    InstructionFormat)
+```
+- `predict.py`: Runs evaluate suite on input model (input through the `--input-folder` parameter, such as a folder like `./modelout` for example). Does cross entropy loss and rouge score calculation on entire dataset holdout split, and does summarisation of example test cases using the model. All of these are printed out. Run `uv run predict.py --help` to see command line arguments, which help specify which model and generation parameters to use. Options include the following:
+```
+--input-folder INPUT_FOLDER
+                    Where to load pretrained model from (default is a folder in the current working directory called "modelout")
+--model-name MODEL_NAME
+                    Name of base model, used for getting tokeniser (default is "openai-community/gpt2")
+--max-eval-steps MAX_EVAL_STEPS
+                    Maximum number of steps to evaluate for when calculating ROUGE and validation loss. -1 to evaluate for all batches in validation dataset (default is
+                    -1)
+--input-format INPUT_FORMAT
+                    Format for inputting report and summary to model. Options include 'TLDRFormat', 'InstructionFormat', 'SpecialFreeInstruction' (default is
+                    InstructionFormat)
+```
+- `generate_plots.py`: Code that takes `to_plot.json` files in each folder named `gpt2-*` and generates training and validation cross entropy loss plots over the training run. Do `uv run generate_plots.py` to generate each of these plots to the `imagery` folder. This script is mainly to help me write the README.md file.
+- `README.md`: Project report, you are reading this right now.
+- `imagery/`: Folder containing images used in this project.
 
 ## Evaluation
 In evaluating the outputs of the models I trained

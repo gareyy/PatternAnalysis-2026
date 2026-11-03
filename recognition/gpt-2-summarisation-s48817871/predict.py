@@ -19,10 +19,10 @@ prompts = {
 
 parser = argparse.ArgumentParser(add_help=True)
 
-parser.add_argument("--input-folder", default="./modelout", help='Where to load pretrained model from')
-parser.add_argument("--model-name", default="openai-community/gpt2", help='Name of base model, used for getting tokeniser')
-parser.add_argument("--max-eval-steps", default=-1, type=int, help="Maximum number of steps to evaluate for when calculating ROUGE and validation loss. -1 to evaluate for all batches in validation dataset")
-parser.add_argument("--input-format", default="InstructionFormat", help=f"Format for inputting report and summary to model. Options include {str(list(modules.formats))[1:-1]}")
+parser.add_argument("--input-folder", default="./modelout", help='Where to load pretrained model from (default is a folder in the current working directory called "modelout")')
+parser.add_argument("--model-name", default="openai-community/gpt2", help='Name of base model, used for getting tokeniser (default is "openai-community/gpt2")')
+parser.add_argument("--max-eval-steps", default=-1, type=int, help="Maximum number of steps to evaluate for when calculating ROUGE and validation loss. -1 to evaluate for all batches in validation dataset (default is -1)")
+parser.add_argument("--input-format", default="InstructionFormat", help=f"Format for inputting report and summary to model. Options include {str(list(modules.formats))[1:-1]} (default is InstructionFormat)")
 
 args = parser.parse_args()
 inputfmt = modules.get_format(args.input_format)

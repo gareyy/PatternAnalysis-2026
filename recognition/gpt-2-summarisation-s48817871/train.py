@@ -19,19 +19,19 @@ torch.manual_seed(EMUDHRA_PRIVATE_KEY)
 
 parser = argparse.ArgumentParser(add_help=True)
 
-parser.add_argument("--output-folder", default="./modelout", type=str, help='Where to store output of training')
-parser.add_argument("--batch-size", default=6, type=int, help="Batch size in training")
-parser.add_argument("--save-every", default=-250, type=int, help="Save every n steps, also does evaluation of metrics (val loss, train loss, ROUGE). If negative, it saves every max-steps/n")
+parser.add_argument("--output-folder", default="./modelout", type=str, help='Where to store output of training (default is a folder in the current working directory called "modelout")')
+parser.add_argument("--batch-size", default=6, type=int, help="Batch size in training (default is 6)")
+parser.add_argument("--save-every", default=-250, type=int, help="Save every n steps, also does evaluation of metrics (val loss, train loss, ROUGE). If negative, it saves every max-steps/n (default is 250)")
 # TODO: change to -1 when not using for testing
-parser.add_argument("--max-steps", default=-1, type=int, help="Max number of steps to train for (independent of epoch amount, takes priority over epoch amount), -1 to train for n epochs * number of batches in training dataset")
-parser.add_argument("--n-epochs", default=3, type=int, help="Number of epochs to train for")
-parser.add_argument("--model-name", default="openai-community/gpt2", type=str, help="Huggingface model to train from")
-parser.add_argument("--num-rows", default=None, type=int, help="Maximum number of rows to use in training dataset")
-parser.add_argument("--max-eval-steps", default=50, type=int, help="Maximum number of steps to evaluate for when calculating ROUGE and validation loss. -1 to evaluate for all batches in validation dataset")
+parser.add_argument("--max-steps", default=-1, type=int, help="Max number of steps to train for (independent of epoch amount, takes priority over epoch amount), -1 to train for n epochs * number of batches in training dataset (default is -1)")
+parser.add_argument("--n-epochs", default=3, type=int, help="Number of epochs to train for (default is 3)")
+parser.add_argument("--model-name", default="openai-community/gpt2", type=str, help="Huggingface model to train from (default is 'openai-community/gpt2')")
+parser.add_argument("--num-rows", default=None, type=int, help="Maximum number of rows to use in training dataset (default is None)")
+parser.add_argument("--max-eval-steps", default=50, type=int, help="Maximum number of steps to evaluate for when calculating ROUGE and validation loss. -1 to evaluate for all batches in validation dataset (default is 50)")
 
-parser.add_argument("--lora", action='store_true', help='Train a LoRA instead of a finetuned model')
+parser.add_argument("--lora", action='store_true', help='Train a LoRA instead of a finetuned model (disabled by default)')
 
-parser.add_argument("--input-format", default="InstructionFormat", help=f"Format for inputting report and summary to model. Options include {str(list(modules.formats))[1:-1]}")
+parser.add_argument("--input-format", default="InstructionFormat", help=f"Format for inputting report and summary to model. Options include {str(list(modules.formats))[1:-1]} (default is InstructionFormat)")
 
 args = parser.parse_args()
 
