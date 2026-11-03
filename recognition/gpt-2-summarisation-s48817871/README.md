@@ -38,16 +38,43 @@ In this project, I investigated the viability of LoRA finetuning for medical rep
 ## Dataset
 The dataset used in this project is the [BioLaySumm](https://huggingface.co/datasets/BioLaySumm/BioLaySumm2025-LaymanRRG-opensource-track) dataset, a collection of medical reports, their summarisations, and associated images. In this project, the images were not used for training or inference. The data came pre split into training rows (150k rows), validation rows (10k rows), and test rows (10.5k rows). 
 
-The test rows came with no layperson summaries, and so for benchmarking in this project, I split the TODO
+The test rows came with no layperson summaries, and so for benchmarking in this project, I split the validation set (which had both medical and layperson summaries) 80-20, where 80% is used in validation for hyperparameter tuning and 20% is held out in evaluation. The result is \~8k rows for validation, and \~2k rows held out for evaluation, The code for this can be found in `dataset.py`, and is done by offsetting the base index of `__getitem__`.
 
 Splits:
-- Training
-- Validation
-- Test
+- Training: Used for training the model, finetuning it for medical report summarisation for laypersons.
+- Validation: Used for evaluation during training and approximating generalisation loss during training. This set is used particularly for hyperparameter tuning, and to ensure the model is capable of generalisation.
+    - NOTE: In training, due to the long training times (Roughly \~2+ hours per epoch, due to the large dataset), only the first 300 (50 validation steps * batch size of 6) validation rows are used in validation loss calculation. Evaluating the whole validation set just for validation loss takes 2 minutes, and having explicitly 250 steps (spread throughout training, every $\lfloor \frac{n}{250} \rfloor$ steps, where n is the total number of training steps) for validation checking, leads to an additional 500 minutes of time spent in the training loop not training, or 8 hours. So only using 50 steps to do validation takes \~5 seconds per validation step, leading to an additional \~21 minutes in training rather than 8 hours.
+- Test AKA Hold out: Used for evaluation in `predict.py`. To prevent me from overfitting the hyperparameters on the validation set during training, I set out this test split for evaluating finetuned models.
 
 ### Data Augmentation
+To make the model follow summarisation instructions, medical and layperson reports are put into instruction formats. These instruction formats make the model respond to summarisation requests, allow for separation of model outputs to medical and simplified outputs, and allow for inputting medical and layperson reports in the same sequence to the decoder-only transformer GPT model.
 
-## How to use and reproduce
+For the main training process, this format was used, with special tokens for instructions, the medical report part, and the summary part.
+
+```
+<inst>Summarise the following for a 6th grade layperson reading level in 1 to 2 sentences</inst>
+<report>"{MEDICAL SUMMARY HERE}"</report>
+<begin>"{LAYPERSON SUMMARY HERE}"
+```
+
+For evaluation of the base GPT-2 model, this format was used, where no special tokens from the above format were used as the model was not trained to use them.
+
+```
+Summarise the following for a 6th grade layperson reading level in 1 to 2 sentences:
+"{MEDICAL SUMMARY HERE}" 
+Summary:
+"{LAYPERSON SUMMARY HERE}"
+```
+
+In development, this format was used before special token addition was implemented. This format was not used for any full training run, and was instead used as part of smoke tests so that I could make sure my own code was working.
+
+```
+{MEDICAL SUMMARY HERE} TLDR; {LAYPERSON SUMMARY HERE}
+```
+
+After putting the medical and layperson reports into a specific format, the pytorch dataset class for the BioLaySumm dataset tokenises the formatted data, and pads it to the max sequence length using the end-of-sentence token. This allowed it to be passed directly to a model's forward function after being sent to GPU memory.
+
+## How to use and reproduce results
 The only major dependencies here is [uv](https://docs.astral.sh/uv/) and python 3.14. Running any script in this repository (i.e using `uv run train.py --help`) will immediately download and install all other dependencies, including but not limited to:
 - pytorch
 - huggingface
