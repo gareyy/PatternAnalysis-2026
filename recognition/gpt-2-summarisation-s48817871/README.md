@@ -5,16 +5,15 @@ To allow for patient autonomy and reduction of healthcare anxiety, patients need
 
 ## Algorithms/Models Used
 ### The Model
-GPT-2 (Generative Pretrained Transformer 2) is a Large Language Model architecture based on the decoder part of transformer architecture developed by OpenAI.
+GPT-2 (Generative Pretrained Transformer 2) is a Large Language Model architecture based on the decoder part of the transformer architecture developed by OpenAI.
 
-GPT-2 has these following architectural components.
-- Decoder only transformer architecture, where inputs are placed alongside model outputs when being fed to the model.
-- Embedding of input tokens to semantic representative vectors through a fully connected neural network.
-- Positional encoding of input sematic vectors.
-- Transformer Blocks, consisting of
-    - Multi Head Self Attention. A Masked Query vector and key matrix are multiplied together, and the result is multiplied by the Value matrix. This allows for deep understanding of input data.
-    - Fully connected neural network, for further processing of attention outputs.
-- Token prediction, where the next token in the sequence is predicted from the processed inputs (processed through transformer blocks and feed forward networks).
+The decoder works by first decomposing the input (which is a sequence of both user input and model output so far) into tokens. These tokens are fed into the embedding feed forward network (FFN), and token positions are injected into these embeddings through positional encoding. These embeddings are then fed through a sequence of transformer blocks, which include a multi head self attention (MHSA) block, and a fully connected network. The multi head self attention block contains weight matrices that transform embeddings into query, key, and value matrices (note that in MHSA, there are usually multiple query, key, and value weight matrices, like channels in convolutions) through multiplying the input embeddings. The query matrices and key matrices are multiplied (and normalised through a division by the square root of the key dimension and softmax) to make a context vector representing similarities between all pairs of tokens. This multiplication makes it so that for each input token, it 'attends' to every other token in the sequence. This context vector is then multiplied with the value matrix to encode what should be the next token in the sequence. This is then fed through another fully connected neural network (FCNN) for further understanding before being passed to the next transformer block or the end. The end components of the GPT take the current output so far through another FCNN and through a softmax function, mapped to the set of all possible output tokens. These output tokens represent the next possible token in the sequence.
+
+Transformers and multi head self attention have the advantage of deeper understanding of variable length sequences through every token attending to both itself and all other tokens in a sequence. This leads to greater semantic understanding of the input text. 
+
+To prevent MHSA from having tokens attend to future tokens during training, attention masking is used, where a triangular matrix is applied to the product of the query and key matrices before the softmax function and multiplication with the value matrix.
+
+The GPT architecture also uses other features such as dropout layers for preventing overfitting, layer norms for easier training and consistent behaviour, and skip connections for information preservation and better gradient flow for faster training convergence.
 
 ![GPT 1's Architecture, Image from Wikimedia Commons](https://upload.wikimedia.org/wikipedia/commons/9/91/Full_GPT_architecture.png)
 
@@ -36,10 +35,44 @@ Say our weight matrix $W$ is $n \times m$, we want to add to it an $n \times m$ 
 
 In this project, I investigated the viability of LoRA finetuning for medical report summarisation in GPT-2.
 
+## Dataset
+The dataset used in this project is the [BioLaySumm](https://huggingface.co/datasets/BioLaySumm/BioLaySumm2025-LaymanRRG-opensource-track) dataset, a collection of medical reports, their summarisations, and associated images. In this project, the images were not used for training or inference. The data came pre split into training rows (150k rows), validation rows (10k rows), and test rows (10.5k rows). 
+
+The test rows came with no layperson summaries, and so for benchmarking in this project, I split the TODO
+
+Splits:
+- Training
+- Validation
+- Test
+
+### Data Augmentation
+
+## How to use and reproduce
+The only major dependencies here is [uv](https://docs.astral.sh/uv/) and python 3.14. Running any script in this repository (i.e using `uv run train.py --help`) will immediately download and install all other dependencies, including but not limited to:
+- pytorch
+- huggingface
+- huggingface transformers
+- matplotlib
+- peft
+- huggingface datasets
+
+This project consists of the following scripts:
+- `modules.py`: 
+- `dataset.py`: 
+- `train.py`: 
+- `predict.py`: 
+- `generate_plots.py`: 
+
+## Evaluation
+In evaluating the outputs of the models I trained
+
+## Training Runs
+
 ## Bibliography
 - TODO: can use zotero -> create bibliography from item
 - openAI gpt 2
-- huggingface transformers,
+- huggingface transformers, peft, dataset
+- biolaysumm dataset
 - https://towardsdatascience.com/meet-gpt-the-decoder-only-transformer-12f4a7918b36/
 
 Putra, M. A. (2025, January 6). Meet GPT, The Decoder-Only Transformer. Towards Data Science. https://towardsdatascience.com/meet-gpt-the-decoder-only-transformer-12f4a7918b36/
