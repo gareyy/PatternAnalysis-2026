@@ -13,6 +13,7 @@ dependencies = [
     "evaluate>=0.4.6",
     "huggingface>=0.0.1",
     "matplotlib>=3.11.2",
+    "openai>=3.45.0",
     "peft>=0.21.2",
     "pyright>=1.1.414",
     "rouge-score>=0.1.2",

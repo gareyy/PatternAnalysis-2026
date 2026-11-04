@@ -6,7 +6,7 @@ import torch
 In the BioLaySumm dataset, the layman reports for the test data are missing.
 
 I simulate a test split by splitting the validation set (in its original order) at a specific point 
-(around 8000), then treat that as the test split.
+(around 80%), then treat that as the test split.
 
 In training, I can then adjust hyperparameters around the validation split, use it for early stopping, etc.
 This prevents me from overfitting (through hyperparameters) on all validation data.
