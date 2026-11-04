@@ -5,4 +5,4 @@ gpt2_*
 __pycache__/
 modelout/
 *.fish
-synthetic.csv
+*.back
