@@ -194,6 +194,8 @@ TODO
 ## Bibliography
 - TODO: can use zotero -> create bibliography from item
 - openAI gpt 2
+- openAI API
+- asyncio 
 - huggingface transformers, peft, dataset
 - biolaysumm dataset
 - https://towardsdatascience.com/meet-gpt-the-decoder-only-transformer-12f4a7918b36/

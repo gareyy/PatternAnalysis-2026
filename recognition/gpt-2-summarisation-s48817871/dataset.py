@@ -40,7 +40,6 @@ class BioLaySummDataset(Dataset):
     def __getitem__(self, index):
         radreport = str(self.bls['radiology_report'][index+self.split_offset])
         stupidreport = str(self.bls['layman_report'][index+self.split_offset])
-        # possible format complex and stupid report here?
         new = self.fmt.format(radreport, stupidreport)
         encoded = self.tokeniser(new, truncation=True, max_length=self.max_length, padding="max_length")
         return {
@@ -49,7 +48,7 @@ class BioLaySummDataset(Dataset):
                 "labels": torch.tensor(encoded['input_ids']),
                 }
 
-class BLS_Synthetic(Dataset):
+class BLSSynthetic(Dataset):
     def __init__(self, tokeniser, fmt: str, csv: str, max_length=512, num_rows: int | None = None, synthetic_only: bool = False) -> None:
         self.length = 0
         self.synthetic_only = synthetic_only
@@ -62,7 +61,7 @@ class BLS_Synthetic(Dataset):
         self.tokeniser = tokeniser
         self.max_length = max_length
         self.fmt = fmt
-        if num_rows:
+        if num_rows != None:
             assert num_rows < self.length and num_rows > 0, "Number of rows is out of range!"
             self.length = num_rows
     def __len__(self):
@@ -73,12 +72,11 @@ class BLS_Synthetic(Dataset):
                 radreport = str(self.bls['radiology_report'][index])
                 stupidreport = str(self.bls['layman_report'][index])
             else:
-                radreport = str(self.synth.at[index-self.bls.num_rows, 'radiology_report'])
-                stupidreport = str(self.synth.at[index-self.bls.num_rows, 'layman_report'])
+                radreport = str(self.synth.iloc[index-self.bls.num_rows]['radiology_report'])
+                stupidreport = str(self.synth.iloc[index-self.bls.num_rows]['layman_report'])
         else:
-            radreport = str(self.synth.at[index, 'radiology_report'])
-            stupidreport = str(self.synth.at[index, 'layman_report'])
-        # possible format complex and stupid report here?
+            radreport = str(self.synth.iloc[index]['radiology_report'])
+            stupidreport = str(self.synth.iloc[index]['layman_report'])
         new = self.fmt.format(radreport, stupidreport)
         encoded = self.tokeniser(new, truncation=True, max_length=self.max_length, padding="max_length")
         return {
@@ -96,7 +94,7 @@ if __name__ == "__main__":
     )
     tokeniser.pad_token = tokeniser.eos_token
     data_collator = DataCollatorWithPadding(tokeniser)
-    train_dataset = BLS_Synthetic(tokeniser, "{}, {}", "synthetic.csv", synthetic_only=True)
+    train_dataset = BLSSynthetic(tokeniser, "{}, {}", "synthetic.csv", synthetic_only=True)
 
     train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=128, collate_fn=data_collator)
     for batch in tqdm(train_dataloader):

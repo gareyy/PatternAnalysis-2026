@@ -1,12 +1,11 @@
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, AutoModelForCausalLM, DataCollatorWithPadding
-from dataset import BioLaySummDataset
+from transformers import DataCollatorWithPadding
+from dataset import BioLaySummDataset, BLSSynthetic
 import modules
 import torch
 import torch.optim as optim
 import torch.optim.lr_scheduler as lr_scheduler
 from tqdm import tqdm
-from peft import LoraConfig, TaskType
 import shutil
 import os
 import argparse
@@ -33,6 +32,10 @@ parser.add_argument("--lora", action='store_true', help='Train a LoRA instead of
 
 parser.add_argument("--input-format", default="InstructionFormat", help=f"Format for inputting report and summary to model. Options include {str(list(modules.formats))[1:-1]} (default is InstructionFormat)")
 
+parser.add_argument("--synthetic", action='store_true', help='Enable usage of synthetic data during training')
+parser.add_argument("--synthetic-only", action='store_true', help='Only use synthetic data in training. Only works if synthetic data is being used')
+parser.add_argument("--synthetic-csv", default="synthetic.csv", type=str, help='CSV file of synthetic data (medical report and summary pairs). Only works if synthetic data is being used')
+
 args = parser.parse_args()
 
 if os.path.exists(args.output_folder):
@@ -50,7 +53,10 @@ tokeniser, model, _ = modules.get_pretrained_model_tokeniser_lora(args, device, 
 
 data_collator = DataCollatorWithPadding(tokeniser)
 
-train_dataset = BioLaySummDataset("train", tokeniser, inputfmt.fmt, num_rows = args.num_rows)
+if args.synthetic:
+    train_dataset = BLSSynthetic(tokeniser, inputfmt.fmt, args.synthetic_csv, num_rows= args.num_rows, synthetic_only=args.synthetic_only)
+else:
+    train_dataset = BioLaySummDataset("train", tokeniser, inputfmt.fmt, num_rows = args.num_rows)
 valid_dataset = BioLaySummDataset("validation", tokeniser, inputfmt.fmt)
 
 train_dataloader = DataLoader(train_dataset, shuffle=True, batch_size=args.batch_size, collate_fn=data_collator)
