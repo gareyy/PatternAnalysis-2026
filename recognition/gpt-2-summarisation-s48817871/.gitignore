@@ -4,6 +4,5 @@ uv.lock
 gpt2_*
 __pycache__/
 modelout/
-*.fish
 *.back
 outputs/
