@@ -6,6 +6,8 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, TextStreamer, Data
 import argparse
 import modules
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+from time import perf_counter
+from datetime import timedelta
 
 prompts = {
     "No significant findings.": "There are no important issues found.",
@@ -31,15 +33,18 @@ model.eval()
 valid_dataset = BioLaySummDataset("test", tokeniser, inputfmt.fmt)
 valid_dataloader = DataLoader(valid_dataset, shuffle=False, batch_size=16, collate_fn=data_collator)
 model = model.to(device)
+start = perf_counter()
+toksec = 0
 for p, s in prompts.items():
-    modules.eval_on_prompt(p, s, inputfmt, tokeniser, model)
-loss_mean, loss_stdev = modules.val_loss(model, valid_dataloader, device, max_eval_steps=args.max_eval_steps)
-print(f"""--TEST SPLIT LOSSES:--
-mean: {loss_mean:.5f}
-stdev: {loss_stdev:.5f}""")
+    toksec += modules.eval_on_prompt(p, s, inputfmt, tokeniser, model)
+toksec /= len(prompts.keys())
+print(f"--AVG TOK/SEC: {toksec:.2f} tok/s--")
 rouges = modules.rouge_score(model, tokeniser, valid_dataloader, device, inputfmt, max_eval_steps=args.max_eval_steps)
 print(f"""--ROUGE SCORES:--
 ROUGE-1: {rouges['rouge1']:.5f}
 ROUGE-2: {rouges['rouge2']:.5f}
 ROUGE-L: {rouges['rougeL']:.5f}
 ROUGE-L-SUM: {rouges['rougeLsum']:.5f}""")
+timetaken = perf_counter()-start
+print(f"TIME TAKEN FOR ENTIRE SUITE: {timedelta(seconds=timetaken)}")
+print(f"MAX VRAM USED: {torch.cuda.max_memory_allocated()}")

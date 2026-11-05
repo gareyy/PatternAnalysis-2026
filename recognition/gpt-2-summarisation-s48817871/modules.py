@@ -130,10 +130,15 @@ def eval_on_prompt(prompt: str, original: str, inputfmt: InputFormat, tokeniser:
     output_tokens = model.generate(**inputs, max_new_tokens=512)
     end = perf_counter()
     num_tokens_generated = output_tokens.shape[1]
-    print(f"{num_tokens_generated / (end-start):.2f} tok/s")
+    toksec = num_tokens_generated / (end-start)
+    print(f"{toksec:.2f} tok/s")
     out = tokeniser.decode(output_tokens[0], skip_special_tokens=True)
     prompt, predict = inputfmt.extract(out)
     print("--PREDICT SUMMARY:--")
     print(predict)
     print("--ORIGINAL SUMMARY:--")
     print(original)
+    rouges = rouge.compute(predictions=[predict], references=[original])
+    print("--ROUGE SCORES:--")
+    print(f"ROUGE-1: {rouges['rouge1']:.5f} | ROUGE-2: {rouges['rouge2']:.5f} | ROUGE-L: {rouges['rougeL']:.5f} | ROUGE-L-Sum: {rouges['rougeLsum']:.5f}")
+    return toksec

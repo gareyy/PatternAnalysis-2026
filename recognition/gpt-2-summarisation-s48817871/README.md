@@ -180,7 +180,7 @@ Metric evaluation was done by creating summaries of all report-summary pairs in 
 
 The problem with ROUGE scores is that they only consider the words and text itself, and not the deeper semantic meaning. ROUGE scores only look at the intersection of words common in both predicted and original summaries, and do not look at semantics. For example, the phrase `The newborn cat is overweight` can be summarised to `The kitten is fat`, and would have a low ROUGE score as the calculations for it do not take into account the semantic similarities between `overweight` and `fat`, or `newborn cat` and `kitten`. Because of its ability to not be able to understand semantics, it cannot be used reliably to measure for factuality, understandability, or hallucinations. For example, the phrase `You are diagnosed with cancer` can be summarised correctly into `You do have cancer` or incorrectly into `You don't have cancer`, and both summaries would have equal or similar ROUGE scores. Because patients need factual yet understandable information for their own autonomy and clinical safety, ROUGE as a metric is simply not enough to evaluate summary quality.
 
-Because of the unreliability of ROUGE scores for this task, I also did manual evaluation on these following report-summary pairs, that I believed represent the entire dataset. I manually inspected the predicted output of these to evaluate unquantifiable metrics like hallucination rate, faithfulness to original medical report, removal of redundant findings, readability by a person at the 6th grade reading level, and coherence.
+Because of the unreliability of ROUGE scores for this task, I also did manual evaluation on these following report-summary pairs, that I believed represent the entire dataset. I manually inspected the predicted output of these to evaluate unquantifiable metrics like hallucination rate, faithfulness to original medical report, readability by a person at the 6th grade reading level, and coherence.
 
 ### REPORT 1
 REPORT: 
@@ -213,7 +213,18 @@ REPORT:
 SUMMARY: 
 > There is a cloudiness near the right lung's airways and a part of the lung has collapsed. The area behind the heart is denser, which could be due to the collapsed lung and a possible lung infection along with fluid around the right lung. It's important to consider the patient's medical history for a proper understanding of the x-ray.
 
-This report demonstrates the importance of translating medical jargon to layperson understandable information, as its corresponding summary makes sure to explain the underlying meaning behind each medical condition instead of purely just reducing the word count. This report and summary pair also has redundant information stating how data is important for radiological assessment.
+This report demonstrates the importance of translating medical jargon to layperson understandable information, as its corresponding summary makes sure to explain the underlying meaning behind each medical condition instead of purely just reducing the word count.
+
+### Evaluation Hyperparameters
+For evaluating each finetuned/pretrained model, the following parameters were used.
+
+| Hyperparameter | Value |
+| -------------- | --------------- |
+| Batch Size | 16 |
+| Dataset Split | Test "Split" (See Dataset section) |
+| Num Data Items for Evaluation | \~2000 |
+
+
 ## Training Runs
 For this project, 4 training runs were done. For all 4 training runs, the following hyperparameters were used. 
 
@@ -230,6 +241,8 @@ For this project, 4 training runs were done. For all 4 training runs, the follow
 | Base Model | GPT-2 135M |
 | Tokenised inputs padded to | 512 tokens |
 | Padding Token | EOS Token |
+| Base Weights | GPT-2 135M |
+| Base Tokeniser | GPT-2 Tokeniser |
 
 These are the four individual training runs done for this project.
 - Full Finetune of GPT-2 135M
@@ -239,35 +252,308 @@ These are the four individual training runs done for this project.
 
 LoRA Finetunes were done with a rank of 8, using default settings in the LoraConfig class from huggingface's `peft` library.
 
-Without the synthetic data, training took TODO steps, and evaluation+saving was done every TODO steps. With the synthetic data, training took TODO steps, and evaluation+saving was done every TODO steps.
+Without the synthetic data, training took 75228 steps, and evaluation+saving was done every 300 steps. With the synthetic data, training took 76479 steps, and evaluation+saving was done every 305 steps.
+
+Without using the LoRA, finetuning the model weights itself leads to 124443648 trainable parameters. Using LoRA and training the LoRA matrices instead of the model weights leads to 294912 trainable parameters.
 
 ## Results
 
 ### Base GPT-2
 Using the Base GPT-2 with the `SpecialFreeInstruction` input format (as described in the Dataset section of this README.md), we get absymal results, with frequent repetition in predicted summaries, irrelevant text, and terrible ROUGE scores.
 
-| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum |
-| --------------- | --------------- | --------------- | --------------- |
-| 0.04310 | 0.00731 | 0.04310 | 0.03939 |
+| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum | Time Taken for Inference | Max Vram Used In Inference | Tok/Sec |
+| --------------- | --------------- | --------------- | --------------- | --- | --- | --- |
+| 0.04310 | 0.00731 | 0.04310 | 0.03939 | 9:10 | 1.26GB | 211.04t/s |
 
+
+#### Summary 1
+
+> The authors conclude that the authors of this study were not able to find any significant differences between the two groups of students.  The authors conclude that the authors of this study were no... *(Repeated words removed for brevity)*
+
+ROUGE Scores: `ROUGE-1: 0.00000 | ROUGE-2: 0.00000 | ROUGE-L: 0.00000 | ROUGE-L-Sum: 0.00000`
+
+Factual faithfulness/hallucinations: The model hallucinates that this report comes from a study with authors that involves two groups of students.
+
+Information Completeness: The base GPT2 model does not reference anything regarding 'no significant findings'.
+
+Layperson Readability: Sentences are repetitive, and the layperson reading would get no information out of the summary.
+
+#### Summary 2
+
+> The authors conclude that the right basal pneumothorax is a result of a pulmonary embolism. The authors conclude that the right basal pneumothorax is a result of a pulmonary embolism.
+The authors conclude that the right basal pneumothorax is a result of a pulmonary embolism.
+The authors conclude that the right basal pneumothorax is a... *(Repeated words removed for brevity)*
+
+ROUGE Scores: `ROUGE-1: 0.09639 | ROUGE-2: 0.01937 | ROUGE-L: 0.09639 | ROUGE-L-Sum: 0.05301`
+
+Factual faithfulness/hallucinations: The summary hallucinates the involvement of pulmonary embolisms, which were not mentioned at all in the report. Supposedly, right basal pneumothoraxes can result from pulmonary embolisms (blood clots) according to my mother who is a nurse, but this is not relevant to the original report at all. The summary also hallucinates that the origin of the report comes from a study with authors.
+
+Information Completeness: Other than the existence of the 'right basal pneumothorax', nothing else is referred to, not even the date.
+
+Layperson Readability: The repeating sentences uses dense medical jargon that no layperson would understand.
+
+#### Summary 3
+
+> The following is a list of the most common signs of COPD.  The following is a list of the most common signs of COPD.  The following is a list of the... *(Repeated words removed for brevity)*
+
+ROUGE Scores: `ROUGE-1: 0.04306 | ROUGE-2: 0.00962 | ROUGE-L: 0.04306 | ROUGE-L-Sum: 0.04306`
+
+Factual faithfulness/hallucinations: The generated text hallucinates that it is not a summary, but instead a list of signs of COPD.
+
+Information Completeness: Other than the existence of COPD, nothing else is referred to.
+
+Layperson Readability: COPD is not spelled out or explained, leaving the layperson with no knowledge about what it is.
+
+#### Summary 4
+
+>  The above is a summary of the above information.  The above information is not a complete list of the above information.  It is a summary of the above information.  It is not a complete list of the above information.  It is not a complete list of the above information.  It is not a... *(Repeated words removed for brevity)*
+
+ROUGE Scores: `ROUGE-1: 0.07440 | ROUGE-2: 0.01319 | ROUGE-L: 0.07440 | ROUGE-L-Sum: 0.07440`
+
+Factual faithfulness/hallucinations: The generated text does not summarise anything, and instead hallucinates sentences about the existence of a summary.
+
+Information Completeness: Nothing in the original medical report is referred to.
+
+Layperson Readability: The layperson reading would be confused by the . They would also get no information about their original condition.
+
+#### Conclusions
+
+The base GPT-2 model gives terrible 'summaries', with low ROUGE scores, I would advise not using this for anything. The fact that this base model demonstrates terrible performance proves that finetunes for this task (for a model of this size) are superior in performance.
 
 ### Full Finetune
 ![Plots of Training and Validation Losses over time](./imagery/gpt2_ft_instform_loss.png)
+(NOTE: The validation losses in this plot and all other plots were calculated using only 300 out of the 8000 validation data points during each evaluation step in training. Using all of the validation points would have lead to longer training times, where time would be wasted not training.)
 
-| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum |
-| --------------- | --------------- | --------------- | --------------- |
-| 0.74452 | 0.57926 | 0.70014 | 0.70030 |
+| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum | Time Taken for Inference | Max Vram Used In Inference | Max Vram Used in Training | Tok/Sec |
+| --------------- | --------------- | --------------- | --------------- | --- | --- | --- | --- |
+| 0.74452 | 0.57926 | 0.70014 | 0.70030 | 2:30 | 1.26GB | 6.09GB | 289.31t/s |
+
+
+#### Summary 1:
+
+> There are no important issues found.
+
+ROUGE Scores: `ROUGE-1: 1.00000 | ROUGE-2: 1.00000 | ROUGE-L: 1.00000 | ROUGE-L-Sum: 1.00000`
+
+Factual faithfulness/hallucinations: The summary completely captures the fact that there are no issues in the medical report.
+
+Information Completeness: No new medical information is revealed, as there should be.
+
+Layperson Readability: A layperson could understand the idea of there being no issues in the medical image.
+
+#### Summary 2
+
+> Compared to the study from June 8, 2012, there's now a new air leak in the lower right part of the lung. There's also air trapped under the skin on the right side of the chest. The x-ray shows that the widespread lung involvement has gotten worse.
+
+ROUGE Scores: `ROUGE-1: 0.63158 | ROUGE-2: 0.37500 | ROUGE-L: 0.50877 | ROUGE-L-Sum: 0.50877`
+
+Factual faithfulness/hallucinations: Gets the definition of a right basal pneumothorax wrong, the generated summary says that is a 'new air leak in the lower right part of the lung', whilst the original summary defines it as a 'leak of air into the space between the lungs on the right side'. The generated summary also refers to the involvement of the lungs as 'widespread', a description not used in the original summary.
+
+Information Completeness: Does acknowledge the date of the previous study. Simplifies the 'Subcutaneous emphysema in the right thoracic wall' as 'air trapped under the skin on the right side of the chest', not referring to the wall at all.
+
+Layperson Readability: Spells out the simplified definitions of the diagnoses from the medical report in simple terms, allowing a layperson to understand easily.
+
+#### Summary 3
+
+> The report indicates Chronic Obstructive Pulmonary Disease (COPD), which is a long-term lung condition. The images also suggest that there might have been a healed fracture in the back part of the 10th rib on the right side.
+
+ROUGE Scores: `ROUGE-1: 0.71233 | ROUGE-2: 0.53521 | ROUGE-L: 0.65753 | ROUGE-L-Sum: 0.65753`
+
+Factual faithfulness/hallucinations: Is able to state correctly what COPD stands for.
+
+Information Completeness: All pieces of information in the original medical report and summary are present in the generated summary, and it even gives the bonus of saying that COPD is a long term condition.
+
+Layperson Readability: The summary tells what COPD stands for, but does not explain it any further. The summary replaces the term 'posterior arch' with the simplified 'back part of the 10th rib'. A layperson should be able to understand easily, but would need to ask what COPD is.
+
+#### Summary 4
+
+> There is an area of lung inflammation near the right lung's main airway and some lung collapse. The density behind the heart is increased, which could be due to lung collapse and lung tissue thickening along with fluid around the right lung. Clinical data is important to accurately assess the x-ray results.
+
+ROUGE Scores: `ROUGE-1: 0.61538 | ROUGE-2: 0.36522 | ROUGE-L: 0.58120 | ROUGE-L-Sum: 0.58120`
+
+Factual faithfulness/hallucinations: States incorrectly that heart density increases are due to 'lung tissue thickening' instead of 'lung infection'. The omission of this lung infection would make this summary very dangerous if presented to the patient.
+
+Information Completeness: All information except for the possibility of a lung infection is within the generated summary.
+
+Layperson Readability: Refers to 'Right parahilar infiltrate and atelectasis' as 'lung inflammation' instead of the slightly less understandable 'cloudiness'. As the summary uses simple explanations instead of obtuse jargon, a layperson could easily understand the report.
+
+#### Conclusions
+This model is able to show both high ROUGE scores, coherent text, understandable summaries, information completeness, and a degree of factuality. However, these summaries also contain some factual errors that would compromise patient understanding, such as in summary 4. When compared to the other models, it seems to outperform them in areas like factual accuracy.
 
 ### LoRA Finetune
 ![Plots of Training and Validation Losses over time](./imagery/gpt2_lora_failed_loss.png)
 
-| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum |
-| --------------- | --------------- | --------------- | --------------- |
-| 0.57202 | 0.37093 | 0.51395 | 0.51352 |
+| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum | Time Taken for Inference | Max Vram Used In Inference | Max Vram Used in Training | Tok/Sec |
+| --------------- | --------------- | --------------- | --------------- | --- | --- | --- | --- |
+| 0.57202 | 0.37093 | 0.51395 | 0.51352 | 8:09 | 1.08GB | 4.88GB | 220.99t/s |
+
+#### Summary 1
+
+> There are no important issues found.
+
+ROUGE Scores: `ROUGE-1: 1.00000 | ROUGE-2: 1.00000 | ROUGE-L: 1.00000 | ROUGE-L-Sum: 1.00000`
+
+Factual faithfulness/hallucinations: The summary completely captures the fact that there are no issues in the medical report.
+
+Information Completeness: No new medical information is revealed, as there should be.
+
+Layperson Readability: A layperson could understand the idea of there being no issues in the medical image.
+
+#### Summary 2
+
+> Looking at the images from the study done on June 8, 2012, we can see that the right lung has a large area of lung inflammation. There's a small area of lung inflammation in the right side of the chest wall. The lung tissue looks better than it did before, but there's still a lot of fluid around the lungs.
+
+ROUGE Scores: `ROUGE-1: 0.42857 | ROUGE-2: 0.16129 | ROUGE-L: 0.28571 | ROUGE-L-Sum: 0.28571`
+
+Factual faithfulness/hallucinations: This summary gets a large amount of facts wrong, and creates lots of incorrect explanations that do not line up with the original summary. The generated summary contradicts the original report and summary, stating that the lungs 'look better than it did before'. The generated summary refers to the 'right basal pneumothorax' incorrectly as a large area of lung inflammation in the right lung. The summary incorrectly states that there is a 'small area of lung inflammation' in the right side of the chest wall.
+
+Information Completeness: The summary does reference the fact that this report is being compared to a previous one. It does refer to the involvement of body parts like the right lung, but does not refer to any specific areas of the right lung, like the chest wall or the space between the lungs.
+
+Layperson Readability: The summary uses no medical jargon, and instead uses simple explanations. A layperson at a 6th grade reading level would be able to understand this. The summary is also coherent.
+
+#### Summary 3
+
+> The report shows signs of Chronic Obstructive Pulmonary Disease (COPD). There are also signs of a healed fracture of the back of the 10th rib on the right side.
+
+ROUGE Scores: `ROUGE-1: 0.76190 | ROUGE-2: 0.45902 | ROUGE-L: 0.66667 | ROUGE-L-Sum: 0.66667`
+
+Factual faithfulness/hallucinations: Summary refers to a report instead of images, but this is negligible. Meaning of COPD abbrieviation is correct.
+
+Information Completeness: All facts seem to have been preserved.
+
+Layperson Readability: The abbrieviation COPD has been decomposed to its original words, allowing a layperson to understand what the abbrieviation stands for. Uses simplified terminology in referring to the 'posterior arch'. A layperson should be able to understand this summary.
+
+#### Summary 4
+
+>  There is a buildup of fluid around the right lung and a buildup of fluid around the lungs. There is also a buildup of fluid around the left lung and a buildup of fluid around the lungs. The patient has a history of fluid buildup around the lungs and fluid around the lungs. The patient has a history of fluid buildup around the lungs and fluid... *(Removed repeating sentences for brevity)*
+
+ROUGE Scores: `ROUGE-1: 0.09890 | ROUGE-2: 0.03676 | ROUGE-L: 0.09524 | ROUGE-L-Sum: 0.09524`
+
+Factual faithfulness/hallucinations: The model hallucinates the patient having a history of fluid buildup around the lungs, which is not true. The model incorrectly states that the left lung has fluid, even though it is not involved in the report. The generated text seems to be fixated on fluid in the lungs.
+
+Information Completeness: Little to no facts are left in the summary. Nothing about cloudiness, heart density, or lung collapse.
+
+Layperson Readability: Incoherent repeating sentences prevents a patient with little knowledge of medical terms unable to understand their own condition and the report given to them. 
+
+#### Conclusions
+This model performs horribly compared to the finetune, with low ROUGE scores, some repeating summaries like in summary 4 (leading to the increased inference evaluation time and reduced token generation speed), and incorrect facts. The model does seem to output coherent, layperson readable text most of the time, and is able to give accurate summaries on easier reports like summaries 1 and 3.
 
 ### Full Finetune with Synthetic Data
+![Plots of Training and Validation Losses over time](./imagery/gpt2_ft_synth_loss.png)
+
+| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum | Time Taken for Inference | Max Vram Used In Inference | Max Vram Used in Training | Tok/Sec |
+| --------------- | --------------- | --------------- | --------------- | --- | --- | --- | --- |
+| 0.74354 | 0.57944 | 0.69947 | 0.69957 | 2:24 | 1.26GB | 6.09GB | 280.51t/s |
+
+
+#### Summary 1
+
+> There are no important issues found.
+
+ROUGE Scores: `ROUGE-1: 1.00000 | ROUGE-2: 1.00000 | ROUGE-L: 1.00000 | ROUGE-L-Sum: 1.00000`
+
+Factual faithfulness/hallucinations: The summary completely captures the fact that there are no issues in the medical report.
+
+Information Completeness: No new medical information is revealed, as there should be.
+
+Layperson Readability: A layperson could understand the idea of there being no issues in the medical image.
+
+#### Summary 2
+
+> Compared to the study from June 8, 2012, there's a new air leak in the lower right part of the lung. There's also air under the skin in the right chest wall. The x-ray shows that both lungs are getting worse with more widespread involvement of the tiny air sacs.
+
+ROUGE Scores: `ROUGE-1: 0.56410 | ROUGE-2: 0.33043 | ROUGE-L: 0.49573 | ROUGE-L-Sum: 0.49573`
+
+Factual faithfulness/hallucinations: Incorrectly states that the 'air leak' is in the 'lower right part of the lung', instead of the 'space between the lungs and chest wall'. Hallucinates the 'involvement' of 'tiny air sacs'.
+
+Information Completeness: No information seems to be omitted from the original report, but there are some factual inconsistences as stated above. References to the date and the report being compared to past data seem to be preserved.
+
+Layperson Readability: This generated summary trades complex medical language for simple (yet incorrect) explanations, allowing a layperson to easily understand.
+
+#### Summary 3
+
+> The report indicates the presence of Chronic Obstructive Pulmonary Disease (COPD), which is a long-term lung condition. The images also suggest that there might be a healed fracture in the back part of the 10th rib on the right side.
+
+ROUGE Scores: `ROUGE-1: 0.72000 | ROUGE-2: 0.54795 | ROUGE-L: 0.66667 | ROUGE-L-Sum: 0.66667`
+
+Factual faithfulness/hallucinations: Presents the 'healed fracture' as a suggestion from the image rather than a definite fact, which I would say is better wording as there should be more investigation on this healed fracture. Otherwise, every fact seems correct.
+
+Information Completeness: No information seems to be withheld.
+
+Layperson Readability: This generated summary seems to be understandable by a layperson, and it is able to expand the abbrieviation of COPD to its full meaning. However, COPD is not explained further.
+
+#### Summary 4
+
+> There is a patchy area of lung inflammation and partially collapsed lung on the right side near the hilum. There is also an increased density behind the heart, which could be due to the collapsed lung and lung tissue thickening along with fluid buildup in the right chest cavity. Clinical data is important to accurately assess the radiological findings.
+
+ROUGE Scores: `ROUGE-1: 0.57377 | ROUGE-2: 0.30000 | ROUGE-L: 0.45902 | ROUGE-L-Sum: 0.45902`
+
+Factual faithfulness/hallucinations: Uses the term 'lung inflammation' instead of cloudiness, which are interchangeable terms, so that isn't a factual mistake. Incorrectly states that density behind the heart increasing could be a result of 'lung tissue thickening' and a fluid buildup in 'the right chest cavity', instead of 'around the right lung'.
+
+Information Completeness: Omits the fact that density behind the heart could be the result of lung infection.
+
+Layperson Readability: Refers to the 'hilum', which is medical jargon that a layperson would not be able to understand. 
+
+#### Conclusions
+A full weight finetune with the addition of synthetic data leads to ROUGE scores slightly less than the finetune without the synthetic data, but higher than the LoRAs. I would say that this model has worse quality summaries than the finetune without the synthetic data, due to some use of complex medical language along with incorrect facts around symptoms and locations of symptoms.
 
 ### LoRA Finetune with Synthetic Data
+![Plots of Training and Validation Losses over time](./imagery/gpt2_lora_synth_loss.png)
+
+| ROUGE-1 | ROUGE-2 | ROUGE-L | ROUGE-L-Sum | Time Taken for Inference | Max Vram Used In Inference | Max Vram Used in Training | Tok/Sec |
+| --------------- | --------------- | --------------- | --------------- | --- | --- | --- | --- |
+| 0.57909 | 0.37467 | 0.52023 | 0.52049 | 7:27 | 1.08GB | 4.88GB | 227.09t/s |
+
+#### Summary 1
+
+> There are no important issues found.
+
+ROUGE Scores: `ROUGE-1: 1.00000 | ROUGE-2: 1.00000 | ROUGE-L: 1.00000 | ROUGE-L-Sum: 1.00000`
+
+Factual faithfulness/hallucinations: The summary completely captures the fact that there are no issues in the medical report.
+
+Information Completeness: No new medical information is revealed, as there should be.
+
+Layperson Readability: A layperson could understand the idea of there being no issues in the medical image.
+
+#### Summary 2
+
+> Looking at the images from the previous study from June 8, 2012, we can see a large cloudiness in the right lung area. There's a condition called a nodule in the right lung wall. The lung tissue looks worse than usual, but there's a worsening of the lung involvement in both lungs.
+
+ROUGE Scores: `ROUGE-1: 0.42373 | ROUGE-2: 0.20690 | ROUGE-L: 0.33898 | ROUGE-L-Sum: 0.33898`
+
+Factual faithfulness/hallucinations: Hallucinates that there is cloudiness (inflammation) in the right lung area (not in the space between the lungs). Incorrectly states the existence of a nodule (a growth of abnormal tissue) instead of trapped air in the right lung/chest wall. Hallucinates 'worsening of lung tissue', a problem not mentioned in the original report.
+
+Information Completeness: As most facts here are incorrect, nearly all important information in the original report is lost.
+
+Layperson Readability: Uses the medical term 'nodule', which a layperson would need a definition of to understand.
+
+#### Summary 3
+
+> The report shows signs of Chronic Obstructive Pulmonary Disease (COPD). There are also signs of a healed fracture of the right rib on the 10th rib.
+
+ROUGE Scores: `ROUGE-1: 0.70000 | ROUGE-2: 0.41379 | ROUGE-L: 0.53333 | ROUGE-L-Sum: 0.53333`
+
+Factual faithfulness/hallucinations: The final part of the summary 'of the right rib on the 10th rib' seems to be a strange wording of 'the 10th rib on the right side', and this wording seems to be incorrect.
+
+Information Completeness: All facts seem to be intact and complete.
+
+Layperson Readability: I believe that a patient with a 6th grade reading level would be able to understand this, but there is a grammatical issue near the end of the summary, which would hamper their understanding. The COPD abbrieviation is fully spelled out, for a patient to understand.
+
+#### Summary 4
+
+> There is a buildup of fluid around the right lung and atelectasis in the lungs. There is also a buildup of fluid around the right lung and a buildup of fluid around the left lung. The patient has a history of fluid buildup in the lungs and fluid around the left lung. The patient has a history of fluid buildup in the lungs and fluid around the left lung. The patient has a history of fluid buildup in the lungs and fluid around the left... *(Removed repeating sentences for brevity)*
+
+ROUGE Scores: `ROUGE-1: 0.11376 | ROUGE-2: 0.04052 | ROUGE-L: 0.10642 | ROUGE-L-Sum: 0.10642`
+
+Factual faithfulness/hallucinations: The generated summary hallucinates the involvement of a left lung that has fluid around it. It also hallucinates the patient having a history of fluid buildup.
+
+Information Completeness: No useful information seems to be within the summary, except for the fact that there is fluid around the right lung.
+
+Layperson Readability: This summary uses medical jargon like 'atelectasis' in its first sentence, which a layperson would not be able to understand. This summary also has repeating sentences of useless information, which blocks the patient from understanding the medical report they need to read.
+
+#### Conclusion
+Unfortunately, this model suffers from the same problem as the other LoRA model as that it repeats sentences on some report prompts, indicating a possible error with the LoRA algorithm itself. This worry is also reflected in how it has similar ROUGE scores to the LoRA model without the synthetic data. Just like the full finetune with synthetic data, this model seems to suffer more from hallucinations and factual inaccuracies than its counterpart without synthetic data. 
 
 ## Bibliography
 - TODO: can use zotero -> create bibliography from item
